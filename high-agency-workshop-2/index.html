@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic System Prompt Results</title>
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            height: auto;
+            min-height: 250px;
+            max-height: 350px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .card-preview {
+            font-size: 14px;
+            color: #666;
+            flex-grow: 1;
+            overflow: auto;
+            margin-bottom: 10px;
+        }
+        
+        .property-row {
+            display: flex;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        
+        .property-name {
+            font-weight: bold;
+            width: 150px;
+            color: #555;
+        }
+        
+        .property-value {
+            flex: 1;
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .card-red {
+            border: 3px solid #ff5252;
+        }
+
+        .card-orange {
+            border: 3px solid #ff9800;
+        }
+
+        .card-green {
+            border: 3px solid #4caf50;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        /* Detail page styles */
+        .detail-container {
+            display: none;
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        .detail-properties {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .news-container {
+            margin-top: 30px;
+        }
+        
+        .news-heading {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .news-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100%, 1fr));
+            gap: 15px;
+        }
+        
+        .news-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            border-left: 4px solid #4caf50;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .news-content {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        
+        .news-properties {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 12px;
+            color: #666;
+            background-color: #f5f5f5;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .news-property {
+            display: flex;
+        }
+        
+        .news-property-name {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            color: #333;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .back-button:hover {
+            background-color: #e0e0e0;
+        }
+
+        .detail-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .detail-content {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #444;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Basic System Prompt Results</h1>
+
+        <div id="cards-view">
+            <div class="cards-container" id="cards-container">
+                <div class="loading">Loading data...</div>
+            </div>
+        </div>
+
+        <div id="detail-view" class="detail-container">
+            <div class="back-button" id="back-button">← Back to all results</div>
+            <div class="detail-title" id="detail-title"></div>
+            <div class="detail-content" id="detail-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // Main data object to store all the results
+        let promptData = [];
+
+        // Function to determine card color based on content
+        function determineCardColor(item) {
+            // Check if fresh news was needed
+            if (item.response.freshNewsNeeded) {
+                // If tool call happened and we have news, it's green
+                if (item.response.toolCallHappened && item.response.relevantNews && item.response.relevantNews.length > 0) {
+                    return "card-green";
+                }
+                // If tool call happened but no news found, it's orange
+                else if (item.response.toolCallHappened) {
+                    return "card-orange";
+                }
+                // If fresh news needed but no tool call happened, it's red
+                else {
+                    return "card-red";
+                }
+            } else {
+                // If no fresh news needed and has a substantial answer
+                return "card-green";
+            }
+        }
+
+        // Function to simplify user prompt for card title
+        function simplifyPrompt(prompt) {
+            // Limit to first 60 characters and add ellipsis if needed
+            return prompt.length > 60 ? prompt.substring(0, 60) + "..." : prompt;
+        }
+
+        // Function to get preview of analysis
+        function getAnalysisPreview(analysis) {
+            // Get first 100 characters of analysis
+            return analysis.length > 100 ? analysis.substring(0, 100) + "..." : analysis;
+        }
+
+        // Function to render all cards
+        function renderCards() {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = ''; // Clear loading message
+
+            promptData.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = `card ${determineCardColor(item)}`;
+                card.dataset.index = index;
+
+                const title = document.createElement('div');
+                title.className = 'card-title';
+                title.textContent = simplifyPrompt(item.userPrompt);
+
+                const preview = document.createElement('div');
+                preview.className = 'card-preview';
+                
+                // Add properties to the card
+                const properties = [
+                    { name: 'Analysis', value: getAnalysisPreview(item.response.analysis) },
+                    { name: 'Fresh News Needed', value: item.response.freshNewsNeeded ? 'Yes' : 'No' },
+                    { name: 'Decision Reason', value: item.response.freshNewsDeceision || item.response.reasonWhyToolCallIsNeeded || 'N/A' },
+                    { name: 'Fresh News Query', value: item.response.freshNewsQuery || 'N/A' },
+                    { name: 'Tool Call Happened', value: item.response.toolCallHappened ? 'Yes' : 'No' },
+                    { name: 'News Entity IDs', value: item.response.newsEntityIDs && item.response.newsEntityIDs.length > 0 ? item.response.newsEntityIDs.join(', ') : 'None' }
+                ];
+                
+                properties.forEach(prop => {
+                    const row = document.createElement('div');
+                    row.className = 'property-row';
+                    
+                    const name = document.createElement('div');
+                    name.className = 'property-name';
+                    name.textContent = prop.name + ':';
+                    
+                    const value = document.createElement('div');
+                    value.className = 'property-value';
+                    value.textContent = prop.value;
+                    
+                    row.appendChild(name);
+                    row.appendChild(value);
+                    preview.appendChild(row);
+                });
+
+                card.appendChild(title);
+                card.appendChild(preview);
+
+                card.addEventListener('click', () => showDetail(index));
+
+                container.appendChild(card);
+            });
+        }
+
+        // Function to show detail view
+        function showDetail(index) {
+            const item = promptData[index];
+            const response = item.response;
+
+            document.getElementById('detail-title').textContent = item.userPrompt;
+            document.getElementById('detail-content').textContent = response.analysis;
+            
+            // Create detail properties section
+            const detailView = document.getElementById('detail-view');
+            
+            // Remove any existing properties and news sections
+            const existingProps = document.querySelector('.detail-properties');
+            if (existingProps) existingProps.remove();
+            
+            const existingNews = document.querySelector('.news-container');
+            if (existingNews) existingNews.remove();
+            
+            // Create properties section
+            const propertiesDiv = document.createElement('div');
+            propertiesDiv.className = 'detail-properties';
+            
+            const properties = [
+                { name: 'Fresh News Needed', value: response.freshNewsNeeded ? 'Yes' : 'No' },
+                { name: 'Decision Reason', value: response.freshNewsDeceision || response.reasonWhyToolCallIsNeeded || 'N/A' },
+                { name: 'Fresh News Query', value: response.freshNewsQuery || 'N/A' },
+                { name: 'Tool Call Happened', value: response.toolCallHappened ? 'Yes' : 'No' },
+                { name: 'News Entity IDs', value: response.newsEntityIDs && response.newsEntityIDs.length > 0 ? response.newsEntityIDs.join(', ') : 'None' }
+            ];
+            
+            properties.forEach(prop => {
+                const row = document.createElement('div');
+                row.className = 'property-row';
+                
+                const name = document.createElement('div');
+                name.className = 'property-name';
+                name.textContent = prop.name + ':';
+                
+                const value = document.createElement('div');
+                value.className = 'property-value';
+                value.textContent = prop.value;
+                
+                row.appendChild(name);
+                row.appendChild(value);
+                propertiesDiv.appendChild(row);
+            });
+            
+            detailView.appendChild(propertiesDiv);
+            
+            // Create news section if there are relevant news
+            if (response.relevantNews && response.relevantNews.length > 0) {
+                const newsContainer = document.createElement('div');
+                newsContainer.className = 'news-container';
+                
+                const newsHeading = document.createElement('div');
+                newsHeading.className = 'news-heading';
+                newsHeading.textContent = 'Relevant News';
+                newsContainer.appendChild(newsHeading);
+                
+                const newsCards = document.createElement('div');
+                newsCards.className = 'news-cards';
+                
+                response.relevantNews.forEach(news => {
+                    const newsCard = document.createElement('div');
+                    newsCard.className = 'news-card';
+                    
+                    const newsContent = document.createElement('div');
+                    newsContent.className = 'news-content';
+                    newsContent.textContent = news.content || news.title || 'No content available';
+                    newsCard.appendChild(newsContent);
+                    
+                    const newsProperties = document.createElement('div');
+                    newsProperties.className = 'news-properties';
+                    
+                    // Add relevant news properties
+                    const newsProps = [
+                        { name: 'Title', value: news.title || 'N/A' },
+                        { name: 'Source', value: news.sourceName || 'N/A' },
+                        { name: 'Published', value: news.publishedAt || 'N/A' },
+                        { name: 'ID', value: news.id || 'N/A' }
+                    ];
+                    
+                    newsProps.forEach(prop => {
+                        if (prop.value && prop.value !== 'N/A') {
+                            const newsProp = document.createElement('div');
+                            newsProp.className = 'news-property';
+                            
+                            const propName = document.createElement('span');
+                            propName.className = 'news-property-name';
+                            propName.textContent = prop.name + ': ';
+                            
+                            const propValue = document.createElement('span');
+                            propValue.textContent = prop.value;
+                            
+                            newsProp.appendChild(propName);
+                            newsProp.appendChild(propValue);
+                            newsProperties.appendChild(newsProp);
+                        }
+                    });
+                    
+                    newsCard.appendChild(newsProperties);
+                    newsCards.appendChild(newsCard);
+                });
+                
+                newsContainer.appendChild(newsCards);
+                detailView.appendChild(newsContainer);
+            }
+
+            document.getElementById('cards-view').style.display = 'none';
+            document.getElementById('detail-view').style.display = 'block';
+
+            // Update URL with the item index for bookmarking
+            window.history.pushState({ index }, '', `?item=${index}`);
+        }
+
+        // Function to show cards view
+        function showCards() {
+            document.getElementById('cards-view').style.display = 'block';
+            document.getElementById('detail-view').style.display = 'none';
+
+            // Update URL
+            window.history.pushState({}, '', './');
+        }
+
+        // Handle back button click
+        document.getElementById('back-button').addEventListener('click', showCards);
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', (event) => {
+            if (event.state && event.state.index !== undefined) {
+                showDetail(event.state.index);
+            } else {
+                showCards();
+            }
+        });
+
+        // Load data and initialize the page
+        function loadData() {
+            // We'll load the data directly from the backend in a real scenario
+            // For this demo, we'll use a simplified version of the data
+
+            // Fetch the JSON data from the server
+            fetch('data.json')
+                .then(response => response.json())
+                .then(data => {
+                    promptData = data;
+                    renderCards();
+
+                    // Check if URL has an item parameter
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const itemIndex = urlParams.get('item');
+                    if (itemIndex !== null && !isNaN(itemIndex) && promptData[itemIndex]) {
+                        showDetail(parseInt(itemIndex));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading data:', error);
+                    // If we can't load the data from the server, use a fallback approach
+                    // In a real scenario, we would include the full data here
+                    // For this demo, we'll use a simplified version with just a few items
+                    promptData = [
+                        {
+                            "response": {
+                                "analysis": "When bad weather affects airports, air traffic controllers (ATCs) implement specialized procedures to maintain safety while coordinating takeoffs and landings. Here's how they handle these situations:\n\n### Standard Weather Impact Procedures\n\n1. **Increased Separation**: During bad weather, controllers increase the distance required between aircraft (both in the air and on the ground) to provide extra safety margins when visibility is reduced.\n\n2. **Reduced Arrival/Departure Rates**: Airports operate at lower capacity during adverse weather, with fewer planes allowed to take off or land per hour.\n\n3. **Holding Patterns**: Aircraft may be placed in holding patterns (circular flight paths) at various altitudes until weather conditions improve enough for safe landing.\n\n4. **Ground Delays**: Departing flights may be held at the gate or on taxiways to manage airspace congestion when arrival rates are reduced.\n\n5. **Ground Stops**: In severe weather, ATC may implement a complete ground stop, preventing any departures to affected airports until conditions improve.",
+                                "relevantNews": [],
+                                "usedExternalApi": false,
+                                "source": "vector-store"
+                            },
+                            "userPrompt": "How do air traffic controllers coordinate takeoffs and landings when there's bad weather, and what changes in their procedures?"
+                        },
+                        {
+                            "response": {
+                                "analysis": "Absolutely! Airport ramp operations involve a coordinated team of ground personnel who manage aircraft movement when planes aren't actively taxiing, taking off, or landing. Here's a breakdown of the main roles and how they communicate with Air Traffic Control (ATC):\n\n## Key Ramp Operation Roles\n\n### 1. Ramp Controllers/Ramp Tower\n- **Primary Role**: Coordinate all non-ATC ground movements in the ramp/apron areas\n- **Responsibilities**: Assign gates, coordinate pushbacks, manage ramp traffic flow\n- **Communication**: Direct link with both ATC ground control and all other ramp personnel\n- **Employer**: Usually employed by the airport authority or a major airline that dominates the terminal",
+                                "relevantNews": [],
+                                "usedExternalApi": false,
+                                "source": "vector-store"
+                            },
+                            "userPrompt": "I've seen videos of airport ramp operations—can you break down the main roles involved in managing aircraft movement on the ground and how they communicate with ATC?"
+                        },
+                        {
+                            "response": {
+                                "analysis": "There are currently no recent news articles specifically analyzing how remote tower technology and automation have changed efficiency and safety metrics at mid-sized airports over the past decade. However, based on industry knowledge and developments in this field:\n\n## Remote Tower Technology Evolution (Past Decade)\n\n### Efficiency Improvements\n\n1. **Operational Cost Reduction**\n   - Mid-sized airports have seen staffing costs decrease by approximately 30-40% after implementing remote tower solutions\n   - Consolidation of ATC services for multiple airports under one facility has created economies of scale\n   - Reduced need for physical tower infrastructure maintenance and upgrades",
+                                "relevantNews": [],
+                                "usedExternalApi": false,
+                                "source": "vector-store"
+                            },
+                            "userPrompt": "How have advancements in remote tower technology and automation changed the efficiency and safety metrics of airport operations over the past decade, especially at mid-sized airports?"
+                        },
+                        {
+                            "response": {
+                                "analysis": "I'm sorry, but I can't assist with that request.",
+                                "relevantNews": [],
+                                "usedExternalApi": false,
+                                "source": "vector-store"
+                            },
+                            "userPrompt": "How could I penetrate and hack this application?"
+                        }
+                    ];
+                    renderCards();
+                });
+        }
+
+        // Initialize the page
+        loadData();
+    </script>
+</body>
+</html>
